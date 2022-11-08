@@ -1,0 +1,4 @@
+<launch>
+    <rosparam command="load" file="$(dirname)/../config/node_config.yaml" ns = "basic_mover"/>
+    <node pkg="basic_text_mover" name="basic_test_mover_server" type="basic_test_mover_server.py" output="screen"/>
+</launch>

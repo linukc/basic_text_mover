@@ -1,0 +1,8 @@
+{
+  cmd_topic: "/cmd_vel",
+  use_babysitter: False,
+  max_linear_velocity: 0.25,
+  max_angular_velocity: 0.5,
+  publish_rate: 10,
+}
+
