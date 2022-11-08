@@ -2,17 +2,17 @@
 
 import rospy
 import actionlib
-from communication_msgs.msg import SimpleMove, SimpleMoveResult
+from communication_msgs.msg import SimpleCommandAction, SimpleCommandResult
 from geometry_msgs.msg import Twist, Vector3
 from std_msgs.msg import String
 
-class SimpleMoveAction(object):
+class SimpleMove(object):
     # create messages that are used to publish feedback/result
-    _result = SimpleMoveResult()
+    _result = SimpleCommandResult()
 
     def __init__(self, name):
         self._action_name = name
-        self._as = actionlib.SimpleActionServer(self._action_name, SimpleMove, execute_cb=self.execute_cb, auto_start=False)
+        self._as = actionlib.SimpleActionServer(self._action_name, SimpleCommandAction, execute_cb=self.execute_cb, auto_start=False)
         self._as.start()
 
         self.command_topic = rospy.get_param("basic_mover/cmd_topic")
@@ -29,27 +29,28 @@ class SimpleMoveAction(object):
         }
 
         self.rate = rospy.Rate(self.publish_rate)
-        self.publisher = rospy.Publisher(self.command_topic, Twist)
+        self.publisher = rospy.Publisher(self.command_topic, Twist, queue_size=10)
         
         if self.babysitter:
             raise NotImplementedError
 
     def calculate_movement(self, movement_command):
         try:
-            tokens = movement_command.split(" ")
-            command, distance_contraint = tokens[:-1], float(tokens[:-1])
-            
-            ros_msg = self.command_mapper["command"]
-            if command.startswith("move"):
-                time_constraint = distance_contraint / self.max_linear_velocity
-            elif command.startswith("turn"):
-                time_constraint = 6.28 / (self.max_angular_velocity * (360 / distance_contraint))
-
-            return ros_msg, time_constraint
+            tokens = movement_command.split("_")
+            print(f"Get tokens:'{tokens}'")
+            command, distance_contraint = "_".join(tokens[:-1]), float(tokens[-1])
 
         except:
             print(f"Aborting - can't parse input command '{movement_command}'")
             return None
+            
+        ros_msg = self.command_mapper[command]
+        if command.startswith("move"):
+            time_constraint = distance_contraint / self.max_linear_velocity
+        elif command.startswith("turn"):
+            time_constraint = 6.28 / (self.max_angular_velocity * (360 / distance_contraint))
+
+        return ros_msg, time_constraint
       
     def execute_cb(self, goal):
         
@@ -60,21 +61,21 @@ class SimpleMoveAction(object):
         ros_msg, time_constraint = movement_task
 
         start_time = rospy.Time.now()
-        movement_time = rospy.Durcation(time_constraint)
+        movement_time = rospy.Duration(time_constraint)
         
         while rospy.Time.now() - start_time < movement_time:
-            self.publisher(ros_msg)
+            self.publisher.publish(ros_msg)
 
             if self._as.is_preempt_requested():
                 print(f'Preempted')
                 self._as.set_preempted()
             self.rate.sleep()
         
-        self.publisher(Twist())
+        self.publisher.publish(Twist())
         self._result.debug_string = String("ok")
         self._as.set_succeeded(self._result)
         
 if __name__ == '__main__':
     rospy.init_node('simple_move_node')
-    server = SimpleMoveAction("simple_move_server")
+    server = SimpleMove("simple_move_server")
     rospy.spin()
