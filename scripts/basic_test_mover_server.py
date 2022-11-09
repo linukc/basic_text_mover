@@ -72,7 +72,6 @@ class SimpleMove(object):
             self.rate.sleep()
         
         self.publisher.publish(Twist())
-        self._result.debug_string = String("ok")
         self._as.set_succeeded(self._result)
         
 if __name__ == '__main__':
